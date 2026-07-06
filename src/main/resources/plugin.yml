@@ -1,0 +1,26 @@
+name: Dimicraft
+version: 0.2.0
+main: kr.dimigo.dimicraft.Main
+api-version: '26.1.2'
+commands:
+  dimicraft:
+    description: 디미크래프트 관리 명령어
+    usage: /dimicraft reload
+    permission: dimicraft.admin
+
+  tpa:
+    description: 텔레포트 요청을 보냅니다
+    usage: /tpa <플레이어>
+
+  tpaccept:
+    description: 텔레포트 요청을 수락합니다
+    usage: /tpaccept
+
+  tpdeny:
+    description: 텔레포트 요청을 거절합니다
+    usage: /tpdeny
+
+permissions:
+  dimicraft.admin:
+    description: 디미크래프트 설정을 리로드합니다
+    default: op

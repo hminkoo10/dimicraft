@@ -1,0 +1,54 @@
+mechanics:
+  keep-inventory: false
+  reduced-debug-info: true
+  announce-advancements: false
+  show-death-messages: false
+  send-command-feedback: false
+  log-admin-commands: false
+  command-block-output: false
+
+logs:
+  hide-join-quit-messages: true
+
+local-chat:
+  enabled: true
+  radius: 64
+
+coordinate:
+  block-commands: true
+  offset:
+    enabled: true
+    x: 50000
+    z: -30000
+  blocked-commands:
+    - tp
+    - teleport
+    - tppos
+    - locate
+    - locatebiome
+    - seed
+    - execute
+    - data
+    - gamerule
+    - worldborder
+    - setworldspawn
+    - coords
+    - coordinate
+    - whereami
+    - getpos
+    - position
+    - advancement
+
+personal-spawn:
+  enabled: true
+  radius: 10000
+  min-distance-from-zero: 1000
+
+compass:
+  target-x: 0
+  target-z: 0
+
+death:
+  hide-details: true
+  message: "사람이 죽었다."
+  player-head-drops: true
