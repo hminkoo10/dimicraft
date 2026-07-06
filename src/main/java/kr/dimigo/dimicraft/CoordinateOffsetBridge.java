@@ -14,11 +14,10 @@ public final class CoordinateOffsetBridge {
 
         try {
             Class<?> offsetClass = loadOffsetClass();
-            Method configure = offsetClass.getMethod("configure", boolean.class, int.class, int.class);
-            configure.invoke(null, settings.coordinateOffsetEnabled(), settings.coordinateOffsetX(), settings.coordinateOffsetZ());
+            configureOffset(offsetClass, settings);
 
             if (settings.coordinateOffsetEnabled()) {
-                plugin.getLogger().info("좌표 오프셋 적용: x=" + settings.coordinateOffsetX() + ", z=" + settings.coordinateOffsetZ());
+                plugin.getLogger().info("좌표 암호화 적용: 플레이어별 오프셋");
             } else {
                 plugin.getLogger().info("좌표 오프셋 비활성화");
             }
@@ -37,6 +36,23 @@ public final class CoordinateOffsetBridge {
         } catch (ClassNotFoundException ex) {
             ClassLoader serverClassLoader = org.bukkit.Bukkit.getServer().getClass().getClassLoader();
             return Class.forName(OFFSET_CLASS, true, serverClassLoader);
+        }
+    }
+
+    private static void configureOffset(Class<?> offsetClass, DimicraftSettings settings)
+            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        try {
+            Method configure = offsetClass.getMethod("configure", boolean.class, int.class, int.class, String.class);
+            configure.invoke(
+                    null,
+                    settings.coordinateOffsetEnabled(),
+                    settings.coordinateOffsetX(),
+                    settings.coordinateOffsetZ(),
+                    settings.coordinateOffsetSecret()
+            );
+        } catch (NoSuchMethodException ignored) {
+            Method configure = offsetClass.getMethod("configure", boolean.class, int.class, int.class);
+            configure.invoke(null, settings.coordinateOffsetEnabled(), settings.coordinateOffsetX(), settings.coordinateOffsetZ());
         }
     }
 }

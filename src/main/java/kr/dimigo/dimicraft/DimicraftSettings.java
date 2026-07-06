@@ -43,6 +43,7 @@ public final class DimicraftSettings {
     private final boolean coordinateOffsetEnabled;
     private final int coordinateOffsetX;
     private final int coordinateOffsetZ;
+    private final String coordinateOffsetSecret;
     private final boolean personalSpawnEnabled;
     private final int personalSpawnRadius;
     private final int personalSpawnMinDistanceFromZero;
@@ -68,6 +69,7 @@ public final class DimicraftSettings {
             boolean coordinateOffsetEnabled,
             int coordinateOffsetX,
             int coordinateOffsetZ,
+            String coordinateOffsetSecret,
             boolean personalSpawnEnabled,
             int personalSpawnRadius,
             int personalSpawnMinDistanceFromZero,
@@ -92,6 +94,7 @@ public final class DimicraftSettings {
         this.coordinateOffsetEnabled = coordinateOffsetEnabled;
         this.coordinateOffsetX = coordinateOffsetX;
         this.coordinateOffsetZ = coordinateOffsetZ;
+        this.coordinateOffsetSecret = coordinateOffsetSecret;
         this.personalSpawnEnabled = personalSpawnEnabled;
         this.personalSpawnRadius = personalSpawnRadius;
         this.personalSpawnMinDistanceFromZero = personalSpawnMinDistanceFromZero;
@@ -128,6 +131,7 @@ public final class DimicraftSettings {
                 config.getBoolean("coordinate.offset.enabled", true),
                 config.getInt("coordinate.offset.x", 50_000),
                 config.getInt("coordinate.offset.z", -30_000),
+                config.getString("coordinate.offset.secret", ""),
                 config.getBoolean("personal-spawn.enabled", true),
                 spawnRadius,
                 spawnMinDistance,
@@ -204,6 +208,10 @@ public final class DimicraftSettings {
 
     public int coordinateOffsetZ() {
         return coordinateOffsetZ;
+    }
+
+    public String coordinateOffsetSecret() {
+        return coordinateOffsetSecret;
     }
 
     public boolean personalSpawnEnabled() {

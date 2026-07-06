@@ -28,9 +28,19 @@ public final class Main extends JavaPlugin {
 
     public void reloadDimicraft() {
         reloadConfig();
+        ensureCoordinateOffsetSecret();
         settings = DimicraftSettings.load(getConfig());
         CoordinateOffsetBridge.apply(this);
         ServerRuleManager.apply(this);
+    }
+
+    private void ensureCoordinateOffsetSecret() {
+        String path = "coordinate.offset.secret";
+        String secret = getConfig().getString(path, "");
+        if (secret == null || secret.isBlank() || secret.equalsIgnoreCase("auto") || secret.equalsIgnoreCase("change-me")) {
+            getConfig().set(path, UUID.randomUUID().toString());
+            saveConfig();
+        }
     }
 
     public DimicraftSettings settings() {
