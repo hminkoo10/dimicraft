@@ -1,7 +1,9 @@
 name: Dimicraft
-version: 0.2.0
+version: 0.3.1
 main: kr.dimigo.dimicraft.Main
 api-version: '26.1.2'
+# UUID 마이그레이션이 다른 플러그인이 유저 데이터를 읽기 전에 끝나도록 먼저 로드한다.
+loadbefore: [DiscordSRV, AuthMe, CoreProtect, DeadChest, Skript]
 commands:
   dimicraft:
     description: 디미크래프트 관리 명령어

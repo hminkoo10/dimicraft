@@ -53,3 +53,18 @@ death:
   hide-details: true
   message: "사람이 죽었다."
   player-head-drops: true
+
+# online-mode 전환 시 기존 플레이어 데이터(인벤토리/위치가 담긴 playerdata, 발전과제, 통계,
+# 화이트리스트, OP, 밴 목록)를 새 UUID 체계로 자동 마이그레이션합니다.
+# 서버 시작 시마다 검사하며, 이미 대상 모드와 일치하는 데이터는 건드리지 않습니다.
+# online-mode 값:
+#   auto  - server.properties의 online-mode를 따라감 (권장: server.properties만 바꾸고 재시작)
+#   true  - 온라인(정품) UUID 기준으로 강제 변환
+#   false - 오프라인 UUID 기준으로 강제 변환
+# 이동 전 원본 파일은 plugins/Dimicraft/uuid-migration-backup/ 아래에 백업됩니다.
+# overwrite-existing: 대상 UUID의 파일이 이미 있을 때(예: 마이그레이션 전에 새 모드로 접속해서
+# 빈 데이터가 생긴 경우) 그 파일을 백업하고 이전 모드 데이터로 교체합니다. false면 건너뜁니다.
+uuid-migration:
+  enabled: true
+  online-mode: auto
+  overwrite-existing: true

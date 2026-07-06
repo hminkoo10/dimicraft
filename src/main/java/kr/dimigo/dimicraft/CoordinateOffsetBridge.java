@@ -2,11 +2,20 @@ package kr.dimigo.dimicraft;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.UUID;
 
 public final class CoordinateOffsetBridge {
     private static final String OFFSET_CLASS = "io.papermc.paper.dimicraft.DimicraftCoordinateOffset";
 
     private CoordinateOffsetBridge() {
+    }
+
+    public static void rotatePlayer(UUID playerId) {
+        try {
+            Method rotate = loadOffsetClass().getMethod("rotatePlayer", UUID.class);
+            rotate.invoke(null, playerId);
+        } catch (ReflectiveOperationException ignored) {
+        }
     }
 
     public static void apply(Main plugin) {

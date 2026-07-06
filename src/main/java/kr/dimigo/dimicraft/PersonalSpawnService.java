@@ -9,15 +9,28 @@ import java.util.UUID;
 
 public final class PersonalSpawnService {
     private final Main plugin;
+    private final PersonalSpawnStore store;
 
-    public PersonalSpawnService(Main plugin) {
+    public PersonalSpawnService(Main plugin, PersonalSpawnStore store) {
         this.plugin = plugin;
+        this.store = store;
     }
 
     public Location getPersonalSpawn(Player player) {
-        DimicraftSettings settings = plugin.settings();
         World world = plugin.getServer().getWorlds().getFirst();
         UUID uuid = player.getUniqueId();
+
+        PersonalSpawnStore.SpawnPoint point = store.get(uuid);
+        if (point == null) {
+            point = computeSpawnPoint(uuid, plugin.settings());
+            store.put(uuid, point);
+        }
+
+        int y = world.getHighestBlockYAt(point.x(), point.z()) + 1;
+        return new Location(world, point.x() + 0.5, y, point.z() + 0.5);
+    }
+
+    static PersonalSpawnStore.SpawnPoint computeSpawnPoint(UUID uuid, DimicraftSettings settings) {
         Random random = new Random(uuid.getMostSignificantBits() ^ uuid.getLeastSignificantBits());
 
         int radius = settings.personalSpawnRadius();
@@ -29,8 +42,7 @@ public final class PersonalSpawnService {
             z = random.nextInt(radius * 2 + 1) - radius;
         } while ((long) x * x + (long) z * z < (long) minDistance * minDistance);
 
-        int y = world.getHighestBlockYAt(x, z) + 1;
-        return new Location(world, x + 0.5, y, z + 0.5);
+        return new PersonalSpawnStore.SpawnPoint(x, z);
     }
 
     public Location getCompassTarget(World world) {

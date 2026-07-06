@@ -4,6 +4,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
@@ -46,7 +47,8 @@ public final class SurvivalRuleListener implements Listener {
         }
     }
 
-    @EventHandler
+    // 다른 스폰 플러그인이 항상 이길 수 있도록 낮은 우선순위로 처리한다.
+    @EventHandler(priority = EventPriority.LOW)
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         if (!plugin.settings().personalSpawnEnabled() || event.isBedSpawn() || event.isAnchorSpawn()) {
             return;

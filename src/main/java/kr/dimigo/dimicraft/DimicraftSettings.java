@@ -52,6 +52,9 @@ public final class DimicraftSettings {
     private final boolean hideDeathDetails;
     private final String deathMessage;
     private final boolean playerHeadDrops;
+    private final boolean uuidMigrationEnabled;
+    private final String uuidMigrationOnlineMode;
+    private final boolean uuidMigrationOverwriteExisting;
 
     private DimicraftSettings(
             boolean keepInventory,
@@ -77,7 +80,10 @@ public final class DimicraftSettings {
             int compassTargetZ,
             boolean hideDeathDetails,
             String deathMessage,
-            boolean playerHeadDrops
+            boolean playerHeadDrops,
+            boolean uuidMigrationEnabled,
+            String uuidMigrationOnlineMode,
+            boolean uuidMigrationOverwriteExisting
     ) {
         this.keepInventory = keepInventory;
         this.reducedDebugInfo = reducedDebugInfo;
@@ -103,6 +109,9 @@ public final class DimicraftSettings {
         this.hideDeathDetails = hideDeathDetails;
         this.deathMessage = deathMessage;
         this.playerHeadDrops = playerHeadDrops;
+        this.uuidMigrationEnabled = uuidMigrationEnabled;
+        this.uuidMigrationOnlineMode = uuidMigrationOnlineMode;
+        this.uuidMigrationOverwriteExisting = uuidMigrationOverwriteExisting;
     }
 
     public static DimicraftSettings load(FileConfiguration config) {
@@ -139,7 +148,10 @@ public final class DimicraftSettings {
                 config.getInt("compass.target-z", 0),
                 config.getBoolean("death.hide-details", true),
                 config.getString("death.message", "사람이 죽었다."),
-                config.getBoolean("death.player-head-drops", true)
+                config.getBoolean("death.player-head-drops", true),
+                config.getBoolean("uuid-migration.enabled", true),
+                config.getString("uuid-migration.online-mode", "auto"),
+                config.getBoolean("uuid-migration.overwrite-existing", true)
         );
     }
 
@@ -244,5 +256,17 @@ public final class DimicraftSettings {
 
     public boolean playerHeadDrops() {
         return playerHeadDrops;
+    }
+
+    public boolean uuidMigrationEnabled() {
+        return uuidMigrationEnabled;
+    }
+
+    public String uuidMigrationOnlineMode() {
+        return uuidMigrationOnlineMode;
+    }
+
+    public boolean uuidMigrationOverwriteExisting() {
+        return uuidMigrationOverwriteExisting;
     }
 }

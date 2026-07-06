@@ -15,7 +15,10 @@ public final class Main extends JavaPlugin {
         saveDefaultConfig();
         reloadDimicraft();
 
-        PersonalSpawnService personalSpawnService = new PersonalSpawnService(this);
+        PersonalSpawnStore personalSpawnStore = new PersonalSpawnStore(this);
+        new UuidMigrationService(this, personalSpawnStore).migrateIfNeeded();
+
+        PersonalSpawnService personalSpawnService = new PersonalSpawnService(this, personalSpawnStore);
 
         getLogger().info("Dimicraft enabled!");
         getCommand("dimicraft").setExecutor(new DimicraftCommand(this));
@@ -24,6 +27,7 @@ public final class Main extends JavaPlugin {
         getCommand("tpdeny").setExecutor(new TpDenyCommand(tpaRequests));
         getServer().getPluginManager().registerEvents(new PlayerHeadDropListener(this), this);
         getServer().getPluginManager().registerEvents(new SurvivalRuleListener(this, personalSpawnService), this);
+        getServer().getPluginManager().registerEvents(new CoordinateOffsetSessionListener(), this);
     }
 
     public void reloadDimicraft() {
