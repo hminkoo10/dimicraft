@@ -13,7 +13,7 @@ public final class CoordinateOffsetBridge {
         DimicraftSettings settings = plugin.settings();
 
         try {
-            Class<?> offsetClass = Class.forName(OFFSET_CLASS);
+            Class<?> offsetClass = loadOffsetClass();
             Method configure = offsetClass.getMethod("configure", boolean.class, int.class, int.class);
             configure.invoke(null, settings.coordinateOffsetEnabled(), settings.coordinateOffsetX(), settings.coordinateOffsetZ());
 
@@ -28,6 +28,15 @@ public final class CoordinateOffsetBridge {
             }
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException ex) {
             plugin.getLogger().warning("좌표 오프셋 적용 실패: " + ex.getMessage());
+        }
+    }
+
+    private static Class<?> loadOffsetClass() throws ClassNotFoundException {
+        try {
+            return Class.forName(OFFSET_CLASS);
+        } catch (ClassNotFoundException ex) {
+            ClassLoader serverClassLoader = org.bukkit.Bukkit.getServer().getClass().getClassLoader();
+            return Class.forName(OFFSET_CLASS, true, serverClassLoader);
         }
     }
 }
