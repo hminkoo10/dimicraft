@@ -46,7 +46,7 @@ public final class PersonalSpawnStore {
         }
     }
 
-    private void save() {
+    public void save() {
         try {
             file.getParentFile().mkdirs();
             data.save(file);

@@ -59,4 +59,8 @@ public final class Main extends JavaPlugin {
     public DimicraftSettings settings() {
         return settings;
     }
+
+    public PersonalSpawnStore personalSpawnStore() {
+        return personalSpawnStore;
+    }
 }

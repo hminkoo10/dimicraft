@@ -1,5 +1,5 @@
 name: Dimicraft
-version: 0.3.5
+version: 0.3.6
 main: kr.dimigo.dimicraft.Main
 api-version: '26.1.2'
 # UUID 마이그레이션이 다른 플러그인이 유저 데이터를 읽기 전에 끝나도록 먼저 로드한다.
@@ -7,7 +7,7 @@ loadbefore: [DiscordSRV, AuthMe, CoreProtect, DeadChest, Skript]
 commands:
   dimicraft:
     description: 디미크래프트 관리 명령어
-    usage: /dimicraft <reload|migrate>
+    usage: /dimicraft <reload|migrate|coords|recover-spawns>
     permission: dimicraft.admin
 
   tpa:
@@ -24,5 +24,5 @@ commands:
 
 permissions:
   dimicraft.admin:
-    description: 디미크래프트 설정을 리로드합니다
+    description: 디미크래프트 관리 명령어를 사용합니다
     default: op
