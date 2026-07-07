@@ -6,7 +6,7 @@
 
     <groupId>kr.dimigo.dimicraft</groupId>
     <artifactId>dimicraft</artifactId>
-    <version>0.3.6</version>
+    <version>0.3.7</version>
 
     <properties>
         <maven.compiler.source>25</maven.compiler.source>

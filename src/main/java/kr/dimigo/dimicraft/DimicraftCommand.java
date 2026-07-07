@@ -3,17 +3,15 @@ package kr.dimigo.dimicraft;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
 
-import java.io.File;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 
 @SuppressWarnings("deprecation")
@@ -22,6 +20,9 @@ public final class DimicraftCommand implements TabExecutor {
 
     public DimicraftCommand(Main plugin) {
         this.plugin = plugin;
+    }
+
+    private record SpawnCandidate(PersonalSpawnStore.SpawnPoint point, boolean fromStoredValue) {
     }
 
     @Override
@@ -85,30 +86,65 @@ public final class DimicraftCommand implements TabExecutor {
         }
 
         boolean overwrite = args.length == 2;
-        Set<UUID> playerIds = collectKnownPlayerIds();
-        if (playerIds.isEmpty()) {
+        UuidModeResolver resolver = new UuidModeResolver(plugin);
+        UuidModeResolver.TargetMode targetMode = resolver.targetMode();
+        List<UuidModeResolver.KnownPlayer> players = resolver.collectKnownPlayers();
+        if (players.isEmpty()) {
             sender.sendMessage(ChatColor.RED + "[디미크래프트] 복구할 플레이어 UUID를 찾지 못했습니다.");
             sender.sendMessage(ChatColor.YELLOW + "월드의 players/data 또는 playerdata 폴더가 남아 있는지 확인해 주세요.");
             return true;
         }
 
+        PersonalSpawnStore store = plugin.personalSpawnStore();
+        Map<UUID, SpawnCandidate> spawnByCanonicalUuid = new LinkedHashMap<>();
+        int converted = 0;
+        int unresolved = 0;
+        for (UuidModeResolver.KnownPlayer player : players) {
+            UUID targetUuid = resolver.canonicalUuid(player, targetMode);
+            if (targetUuid == null) {
+                unresolved++;
+                continue;
+            }
+            if (!targetUuid.equals(player.uuid())) {
+                converted++;
+            }
+
+            SpawnCandidate candidate = spawnCandidate(store, player.uuid(), targetUuid);
+            SpawnCandidate previous = spawnByCanonicalUuid.get(targetUuid);
+            if (previous == null || (!previous.fromStoredValue() && candidate.fromStoredValue())) {
+                spawnByCanonicalUuid.put(targetUuid, candidate);
+            }
+        }
+
+        if (spawnByCanonicalUuid.isEmpty()) {
+            sender.sendMessage(ChatColor.RED + "[디미크래프트] UUID 기준에 맞춰 복구할 수 있는 플레이어가 없습니다.");
+            sender.sendMessage(ChatColor.YELLOW + "플레이어 이름을 알 수 없는 online/offline UUID는 자동 변환할 수 없습니다.");
+            return true;
+        }
+
         int restored = 0;
         int skipped = 0;
-        PersonalSpawnStore store = plugin.personalSpawnStore();
-        for (UUID uuid : playerIds) {
-            if (!overwrite && store.get(uuid) != null) {
+        for (Map.Entry<UUID, SpawnCandidate> entry : spawnByCanonicalUuid.entrySet()) {
+            if (!overwrite && store.get(entry.getKey()) != null) {
                 skipped++;
                 continue;
             }
 
-            PersonalSpawnStore.SpawnPoint point = PersonalSpawnService.computeSpawnPoint(uuid, plugin.settings());
-            store.put(uuid, point);
+            store.put(entry.getKey(), entry.getValue().point());
             restored++;
         }
         store.save();
 
+        int merged = Math.max(0, players.size() - spawnByCanonicalUuid.size() - unresolved);
+        sender.sendMessage(ChatColor.GRAY + "UUID 기준: " + ChatColor.WHITE + resolver.modeName(targetMode));
         sender.sendMessage(ChatColor.GREEN + "[디미크래프트] 개인 스폰 복구 완료: "
-                + restored + "명 복구, " + skipped + "명 기존값 유지, " + playerIds.size() + "명 검사");
+                + restored + "명 복구, " + skipped + "명 기존값 유지, " + merged + "건 중복 병합");
+        if (converted > 0) {
+            sender.sendMessage(ChatColor.GRAY + "online/offline UUID " + converted + "건을 현재 기준으로 맞췄습니다.");
+        }
+        if (unresolved > 0) {
+            sender.sendMessage(ChatColor.YELLOW + "이름을 알 수 없는 UUID " + unresolved + "건은 기준 변환을 건너뛰었습니다.");
+        }
         sender.sendMessage(ChatColor.YELLOW + "현재 personal-spawn 설정 기준으로 다시 계산했습니다. 예전 설정과 다르면 좌표도 달라질 수 있습니다.");
         if (!overwrite && skipped > 0) {
             sender.sendMessage(ChatColor.GRAY + "기존값까지 다시 만들려면 /dimicraft recover-spawns overwrite");
@@ -116,45 +152,20 @@ public final class DimicraftCommand implements TabExecutor {
         return true;
     }
 
-    private Set<UUID> collectKnownPlayerIds() {
-        Set<UUID> playerIds = new LinkedHashSet<>();
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            playerIds.add(player.getUniqueId());
+    private SpawnCandidate spawnCandidate(PersonalSpawnStore store, UUID sourceUuid, UUID targetUuid) {
+        PersonalSpawnStore.SpawnPoint point = store.get(targetUuid);
+        if (point != null) {
+            return new SpawnCandidate(point, true);
         }
 
-        for (World world : Bukkit.getWorlds()) {
-            collectPlayerDataIds(playerIds, new File(world.getWorldFolder(), "players/data"));
-            collectPlayerDataIds(playerIds, new File(world.getWorldFolder(), "playerdata"));
-        }
-
-        File[] worldFolders = Bukkit.getWorldContainer().listFiles(File::isDirectory);
-        if (worldFolders != null) {
-            for (File worldFolder : worldFolders) {
-                if (!new File(worldFolder, "level.dat").isFile()) {
-                    continue;
-                }
-                collectPlayerDataIds(playerIds, new File(worldFolder, "players/data"));
-                collectPlayerDataIds(playerIds, new File(worldFolder, "playerdata"));
+        if (!sourceUuid.equals(targetUuid)) {
+            point = store.get(sourceUuid);
+            if (point != null) {
+                return new SpawnCandidate(point, true);
             }
         }
 
-        return playerIds;
-    }
-
-    private void collectPlayerDataIds(Set<UUID> playerIds, File playerDataDir) {
-        File[] files = playerDataDir.listFiles((dir, name) -> name.endsWith(".dat"));
-        if (files == null) {
-            return;
-        }
-
-        for (File file : files) {
-            String name = file.getName();
-            String uuidText = name.substring(0, name.length() - ".dat".length());
-            try {
-                playerIds.add(UUID.fromString(uuidText));
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
+        return new SpawnCandidate(PersonalSpawnService.computeSpawnPoint(targetUuid, plugin.settings()), false);
     }
 
     private String format(double value) {

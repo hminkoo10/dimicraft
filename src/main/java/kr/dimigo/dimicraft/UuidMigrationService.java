@@ -485,7 +485,7 @@ public final class UuidMigrationService {
     }
 
     /** playerdata .dat(gzip NBT)에서 CraftBukkit이 기록하는 bukkit.lastKnownName을 읽는다. */
-    private static String readLastKnownNameFromDat(File datFile) {
+    static String readLastKnownNameFromDat(File datFile) {
         try (DataInputStream in = new DataInputStream(
                 new BufferedInputStream(new GZIPInputStream(new FileInputStream(datFile))))) {
             if (in.readUnsignedByte() != NBT_TAG_COMPOUND) {
@@ -776,11 +776,11 @@ public final class UuidMigrationService {
         return name != null ? name : resolveName(player.getUniqueId());
     }
 
-    private static UUID offlineUuid(String name) {
+    static UUID offlineUuid(String name) {
         return UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes(StandardCharsets.UTF_8));
     }
 
-    private static UUID fromUndashed(String hex) {
+    static UUID fromUndashed(String hex) {
         return UUID.fromString(hex.replaceFirst(
                 "(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{12})",
                 "$1-$2-$3-$4-$5"));
