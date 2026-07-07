@@ -11,6 +11,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.ban.ProfileBanList;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.world.WorldLoadEvent;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -29,6 +32,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,11 +41,13 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -60,6 +66,9 @@ public final class UuidMigrationService {
     private static final int NBT_TAG_STRING = 8;
     private static final int NBT_TAG_LIST = 9;
     private static final int NBT_TAG_COMPOUND = 10;
+    private static final int WORLD_SCAN_DEPTH = 3;
+    private static final Set<String> NON_WORLD_DIRS = Set.of(
+            "plugins", "logs", "cache", "libraries", "versions", "config", "crash-reports", "debug", "bundler");
 
     private final Main plugin;
     private final Logger log;
@@ -70,6 +79,7 @@ public final class UuidMigrationService {
     private final Map<String, UUID> onlineUuidByName = new HashMap<>();
     private final Set<String> unresolvableNames = new HashSet<>();
     private boolean overwriteExisting = true;
+    private List<File> cachedPlayerDataDirs;
     private Path backupDir;
 
     public UuidMigrationService(Main plugin, PersonalSpawnStore spawnStore) {
@@ -90,6 +100,14 @@ public final class UuidMigrationService {
 
         boolean targetOnline = resolveTargetOnline(settings.uuidMigrationOnlineMode());
         overwriteExisting = settings.uuidMigrationOverwriteExisting();
+
+        // 월드 로드 전(STARTUP 단계)에 실행되면 플레이어 데이터 위치를 못 찾을 수 있다.
+        // 그 경우 첫 월드가 로드된 직후(플레이어 접속 가능 시점 이전)에 다시 실행한다.
+        if (playerDataDirs().isEmpty() && Bukkit.getWorlds().isEmpty()) {
+            scheduleRetryAfterWorldLoad();
+            return;
+        }
+
         loadUserCache();
 
         Map<UUID, String> candidates = collectPlayerDataCandidates(targetOnline);
@@ -179,7 +197,21 @@ public final class UuidMigrationService {
 
     private Map<UUID, String> collectPlayerDataCandidates(boolean targetOnline) {
         Map<UUID, String> candidates = new LinkedHashMap<>();
-        for (File playerDataDir : playerDataDirs()) {
+        List<File> dirs = playerDataDirs();
+        if (dirs.isEmpty()) {
+            File container = Bukkit.getWorldContainer();
+            File[] children = container.listFiles();
+            String childNames = children == null ? "(읽기 실패)" : Arrays.stream(children)
+                    .map(File::getName)
+                    .limit(20)
+                    .collect(Collectors.joining(", "));
+            log.warning(LOG_PREFIX + "플레이어 데이터 폴더(players/data 또는 playerdata)를 찾지 못했습니다. 월드 컨테이너: "
+                    + container.getAbsolutePath() + " / 하위 항목: " + childNames);
+            return candidates;
+        }
+        int onlineFiles = 0;
+        int offlineFiles = 0;
+        for (File playerDataDir : dirs) {
             File[] files = playerDataDir.listFiles((dir, fileName) -> fileName.endsWith(".dat"));
             if (files == null) {
                 continue;
@@ -192,6 +224,11 @@ public final class UuidMigrationService {
                 } catch (IllegalArgumentException ignored) {
                     continue;
                 }
+                if (uuid.version() == ONLINE_UUID_VERSION) {
+                    onlineFiles++;
+                } else if (uuid.version() == OFFLINE_UUID_VERSION) {
+                    offlineFiles++;
+                }
                 if (!needsMigration(uuid, targetOnline) || candidates.containsKey(uuid)) {
                     continue;
                 }
@@ -203,18 +240,109 @@ public final class UuidMigrationService {
                 candidates.put(uuid, name);
             }
         }
+        log.info(LOG_PREFIX + "플레이어 데이터 폴더 " + dirs.size() + "곳(" + dirs + ") 검사 — 온라인 UUID 파일 "
+                + onlineFiles + "개, 오프라인 UUID 파일 " + offlineFiles + "개, 마이그레이션 후보 " + candidates.size() + "명");
         return candidates;
     }
 
+    /**
+     * 월드 로드 전에 실행될 수 있으므로 Bukkit.getWorlds()에 의존하지 않고
+     * server.properties의 level-name과 월드 컨테이너 디스크 폴더(level.dat 존재 기준,
+     * 하위 경로 포함)도 직접 스캔한다.
+     */
     private List<File> playerDataDirs() {
+        if (cachedPlayerDataDirs != null) {
+            return cachedPlayerDataDirs;
+        }
         List<File> dirs = new ArrayList<>();
         for (World world : Bukkit.getWorlds()) {
-            File dir = new File(world.getWorldFolder(), "playerdata");
-            if (dir.isDirectory() && !dirs.contains(dir)) {
-                dirs.add(dir);
+            addPlayerDataDir(dirs, world.getWorldFolder());
+        }
+        File container = Bukkit.getWorldContainer();
+        File levelNameFolder = levelNameWorldFolder(container);
+        if (levelNameFolder != null) {
+            addPlayerDataDir(dirs, levelNameFolder);
+        }
+        scanForWorldFolders(dirs, container, WORLD_SCAN_DEPTH);
+        cachedPlayerDataDirs = dirs;
+        return dirs;
+    }
+
+    private File levelNameWorldFolder(File container) {
+        File props = new File("server.properties");
+        if (!props.isFile()) {
+            return null;
+        }
+        Properties properties = new Properties();
+        try (FileInputStream in = new FileInputStream(props)) {
+            properties.load(in);
+        } catch (IOException ex) {
+            return null;
+        }
+        String levelName = properties.getProperty("level-name", "world").trim();
+        return levelName.isEmpty() ? null : new File(container, levelName);
+    }
+
+    /** level.dat이 있는 폴더만 월드로 간주해, 다른 플러그인의 playerdata라는 이름의 폴더를 오인하지 않게 한다. */
+    private void scanForWorldFolders(List<File> dirs, File parent, int depth) {
+        if (depth <= 0) {
+            return;
+        }
+        File[] children = parent.listFiles(File::isDirectory);
+        if (children == null) {
+            return;
+        }
+        for (File child : children) {
+            String name = child.getName().toLowerCase(Locale.ROOT);
+            if (name.startsWith(".") || NON_WORLD_DIRS.contains(name)) {
+                continue;
+            }
+            if (new File(child, "level.dat").isFile()) {
+                addPlayerDataDir(dirs, child);
+            }
+            scanForWorldFolders(dirs, child, depth - 1);
+        }
+    }
+
+    private void scheduleRetryAfterWorldLoad() {
+        log.info(LOG_PREFIX + "월드가 아직 로드되지 않아 playerdata를 찾을 수 없습니다. 첫 월드 로드 직후 다시 실행합니다.");
+        Bukkit.getPluginManager().registerEvents(new Listener() {
+            @EventHandler
+            public void onWorldLoad(WorldLoadEvent event) {
+                WorldLoadEvent.getHandlerList().unregister(this);
+                plugin.runUuidMigration();
+            }
+        }, plugin);
+    }
+
+    /**
+     * 이 서버(26.x)는 플레이어 데이터를 world/players/data에 저장한다.
+     * (발전과제/통계는 world/players/advancements, world/players/stats)
+     * 구버전 레이아웃(world/playerdata, world/advancements, world/stats)도 함께 지원한다.
+     */
+    private static void addPlayerDataDir(List<File> dirs, File worldFolder) {
+        addIfDirectory(dirs, new File(worldFolder, "players/data"));
+        addIfDirectory(dirs, new File(worldFolder, "playerdata"));
+    }
+
+    private static void addIfDirectory(List<File> dirs, File dir) {
+        if (!dir.isDirectory()) {
+            return;
+        }
+        for (File existing : dirs) {
+            if (samePath(existing, dir)) {
+                return;
             }
         }
-        return dirs;
+        dirs.add(dir);
+    }
+
+    private static boolean samePath(File a, File b) {
+        try {
+            return Files.isSameFile(a.toPath(), b.toPath());
+        } catch (IOException ex) {
+            return a.getAbsoluteFile().equals(b.getAbsoluteFile());
+        }
     }
 
     private boolean needsMigration(UUID uuid, boolean targetOnline) {
@@ -416,12 +544,14 @@ public final class UuidMigrationService {
 
     private int movePlayerFiles(UUID oldUuid, UUID newUuid) {
         int moved = 0;
-        for (World world : Bukkit.getWorlds()) {
-            File worldFolder = world.getWorldFolder();
-            moved += moveFile(new File(worldFolder, "playerdata"), oldUuid + ".dat", newUuid + ".dat");
-            moved += moveFile(new File(worldFolder, "playerdata"), oldUuid + ".dat_old", newUuid + ".dat_old");
-            moved += moveFile(new File(worldFolder, "advancements"), oldUuid + ".json", newUuid + ".json");
-            moved += moveFile(new File(worldFolder, "stats"), oldUuid + ".json", newUuid + ".json");
+        for (File playerDataDir : playerDataDirs()) {
+            // 새 레이아웃(players/data)이든 구 레이아웃(playerdata)이든
+            // 발전과제/통계 폴더는 데이터 폴더의 부모 바로 아래에 있다.
+            File base = playerDataDir.getParentFile();
+            moved += moveFile(playerDataDir, oldUuid + ".dat", newUuid + ".dat");
+            moved += moveFile(playerDataDir, oldUuid + ".dat_old", newUuid + ".dat_old");
+            moved += moveFile(new File(base, "advancements"), oldUuid + ".json", newUuid + ".json");
+            moved += moveFile(new File(base, "stats"), oldUuid + ".json", newUuid + ".json");
         }
         return moved;
     }

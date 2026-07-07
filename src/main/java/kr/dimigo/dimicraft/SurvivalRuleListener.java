@@ -6,11 +6,17 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.event.world.WorldLoadEvent;
 
 import java.util.Locale;
 
@@ -24,6 +30,12 @@ public final class SurvivalRuleListener implements Listener {
         this.personalSpawnService = personalSpawnService;
     }
 
+    // loadbefore 때문에 월드 로드 전(STARTUP 단계)에 활성화될 수 있어, 월드가 뜰 때도 규칙을 적용한다.
+    @EventHandler
+    public void onWorldLoad(WorldLoadEvent event) {
+        ServerRuleManager.applyWorld(event.getWorld(), plugin.settings());
+    }
+
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         DimicraftSettings settings = plugin.settings();
@@ -33,11 +45,16 @@ public final class SurvivalRuleListener implements Listener {
             event.setJoinMessage(null);
         }
 
-        player.setCompassTarget(personalSpawnService.getCompassTarget(player.getWorld()));
+        personalSpawnService.updateCompass(player);
 
         if (settings.personalSpawnEnabled() && !player.hasPlayedBefore()) {
             player.teleport(personalSpawnService.getPersonalSpawn(player));
         }
+    }
+
+    @EventHandler
+    public void onPlayerChangedWorld(PlayerChangedWorldEvent event) {
+        personalSpawnService.updateCompass(event.getPlayer());
     }
 
     @EventHandler
@@ -50,11 +67,35 @@ public final class SurvivalRuleListener implements Listener {
     // 다른 스폰 플러그인이 항상 이길 수 있도록 낮은 우선순위로 처리한다.
     @EventHandler(priority = EventPriority.LOW)
     public void onPlayerRespawn(PlayerRespawnEvent event) {
-        if (!plugin.settings().personalSpawnEnabled() || event.isBedSpawn() || event.isAnchorSpawn()) {
-            return;
+        if (plugin.settings().personalSpawnEnabled() && !event.isBedSpawn() && !event.isAnchorSpawn()) {
+            event.setRespawnLocation(personalSpawnService.getPersonalSpawn(event.getPlayer()));
         }
 
-        event.setRespawnLocation(personalSpawnService.getPersonalSpawn(event.getPlayer()));
+        plugin.getServer().getScheduler().runTask(plugin, () -> personalSpawnService.updateCompass(event.getPlayer()));
+    }
+
+    @EventHandler
+    public void onPlayerItemHeld(PlayerItemHeldEvent event) {
+        personalSpawnService.updateCompass(event.getPlayer());
+    }
+
+    @EventHandler
+    public void onPlayerSwapHandItems(PlayerSwapHandItemsEvent event) {
+        plugin.getServer().getScheduler().runTask(plugin, () -> personalSpawnService.updateCompass(event.getPlayer()));
+    }
+
+    @EventHandler
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (event.getWhoClicked() instanceof Player player) {
+            plugin.getServer().getScheduler().runTask(plugin, () -> personalSpawnService.updateCompass(player));
+        }
+    }
+
+    @EventHandler
+    public void onEntityPickupItem(EntityPickupItemEvent event) {
+        if (event.getEntity() instanceof Player player) {
+            plugin.getServer().getScheduler().runTask(plugin, () -> personalSpawnService.updateCompass(player));
+        }
     }
 
     @EventHandler

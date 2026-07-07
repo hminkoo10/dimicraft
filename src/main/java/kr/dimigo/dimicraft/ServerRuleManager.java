@@ -15,6 +15,10 @@ public final class ServerRuleManager {
         }
     }
 
+    public static void applyWorld(World world, DimicraftSettings settings) {
+        applyWorldRules(world, settings);
+    }
+
     private static void applyWorldRules(World world, DimicraftSettings settings) {
         world.setGameRule(GameRule.KEEP_INVENTORY, settings.keepInventory());
         world.setGameRule(GameRule.REDUCED_DEBUG_INFO, settings.reducedDebugInfo());

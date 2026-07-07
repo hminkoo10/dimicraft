@@ -9,16 +9,18 @@ import java.util.UUID;
 public final class Main extends JavaPlugin {
     private final Map<UUID, UUID> tpaRequests = new HashMap<>();
     private DimicraftSettings settings;
+    private PersonalSpawnStore personalSpawnStore;
+    private PersonalSpawnService personalSpawnService;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
         reloadDimicraft();
 
-        PersonalSpawnStore personalSpawnStore = new PersonalSpawnStore(this);
-        new UuidMigrationService(this, personalSpawnStore).migrateIfNeeded();
+        personalSpawnStore = new PersonalSpawnStore(this);
+        runUuidMigration();
 
-        PersonalSpawnService personalSpawnService = new PersonalSpawnService(this, personalSpawnStore);
+        personalSpawnService = new PersonalSpawnService(this, personalSpawnStore);
 
         getLogger().info("Dimicraft enabled!");
         getCommand("dimicraft").setExecutor(new DimicraftCommand(this));
@@ -36,6 +38,9 @@ public final class Main extends JavaPlugin {
         settings = DimicraftSettings.load(getConfig());
         CoordinateOffsetBridge.apply(this);
         ServerRuleManager.apply(this);
+        if (personalSpawnService != null) {
+            getServer().getOnlinePlayers().forEach(personalSpawnService::updateCompass);
+        }
     }
 
     private void ensureCoordinateOffsetSecret() {
@@ -45,6 +50,10 @@ public final class Main extends JavaPlugin {
             getConfig().set(path, UUID.randomUUID().toString());
             saveConfig();
         }
+    }
+
+    public void runUuidMigration() {
+        new UuidMigrationService(this, personalSpawnStore).migrateIfNeeded();
     }
 
     public DimicraftSettings settings() {

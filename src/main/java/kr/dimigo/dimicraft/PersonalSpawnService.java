@@ -1,8 +1,12 @@
 package kr.dimigo.dimicraft;
 
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.CompassMeta;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.Random;
 import java.util.UUID;
@@ -50,5 +54,29 @@ public final class PersonalSpawnService {
         int x = settings.compassTargetX();
         int z = settings.compassTargetZ();
         return new Location(world, x + 0.5, world.getHighestBlockYAt(x, z) + 1.0, z + 0.5);
+    }
+
+    public void updateCompass(Player player) {
+        Location target = getCompassTarget(player.getWorld());
+        player.setCompassTarget(target);
+
+        for (ItemStack item : player.getInventory().getContents()) {
+            updateCompassItem(item, target);
+        }
+    }
+
+    private void updateCompassItem(ItemStack item, Location target) {
+        if (item == null || item.getType() != Material.COMPASS) {
+            return;
+        }
+
+        ItemMeta itemMeta = item.getItemMeta();
+        if (!(itemMeta instanceof CompassMeta compassMeta)) {
+            return;
+        }
+
+        compassMeta.setLodestone(target);
+        compassMeta.setLodestoneTracked(false);
+        item.setItemMeta(compassMeta);
     }
 }
