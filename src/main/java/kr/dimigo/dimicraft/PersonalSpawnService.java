@@ -2,11 +2,13 @@ package kr.dimigo.dimicraft;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.CompassMeta;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.Random;
 import java.util.UUID;
@@ -14,10 +16,12 @@ import java.util.UUID;
 public final class PersonalSpawnService {
     private final Main plugin;
     private final PersonalSpawnStore store;
+    private final NamespacedKey zeroCompassKey;
 
     public PersonalSpawnService(Main plugin, PersonalSpawnStore store) {
         this.plugin = plugin;
         this.store = store;
+        this.zeroCompassKey = new NamespacedKey(plugin, "zero_compass");
     }
 
     public Location getPersonalSpawn(Player player) {
@@ -75,8 +79,27 @@ public final class PersonalSpawnService {
             return;
         }
 
+        if (compassMeta.hasLodestone() && !isDimicraftCompass(compassMeta) && !isLegacyZeroCompass(compassMeta, target)) {
+            return;
+        }
+
         compassMeta.setLodestone(target);
         compassMeta.setLodestoneTracked(false);
+        compassMeta.setEnchantmentGlintOverride(false);
+        compassMeta.getPersistentDataContainer().set(zeroCompassKey, PersistentDataType.BYTE, (byte) 1);
         item.setItemMeta(compassMeta);
+    }
+
+    private boolean isDimicraftCompass(CompassMeta compassMeta) {
+        return compassMeta.getPersistentDataContainer().has(zeroCompassKey, PersistentDataType.BYTE);
+    }
+
+    private boolean isLegacyZeroCompass(CompassMeta compassMeta, Location target) {
+        Location lodestone = compassMeta.getLodestone();
+        return lodestone != null
+                && !compassMeta.isLodestoneTracked()
+                && target.getWorld().equals(lodestone.getWorld())
+                && target.getBlockX() == lodestone.getBlockX()
+                && target.getBlockZ() == lodestone.getBlockZ();
     }
 }
