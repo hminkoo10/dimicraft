@@ -65,11 +65,14 @@ public final class PersonalSpawnService {
         player.setCompassTarget(target);
 
         for (ItemStack item : player.getInventory().getContents()) {
-            updateCompassItem(item, target);
+            repairFakeZeroCompass(item, target);
+        }
+        for (ItemStack item : player.getInventory().getExtraContents()) {
+            repairFakeZeroCompass(item, target);
         }
     }
 
-    private void updateCompassItem(ItemStack item, Location target) {
+    private void repairFakeZeroCompass(ItemStack item, Location target) {
         if (item == null || item.getType() != Material.COMPASS) {
             return;
         }
@@ -79,14 +82,13 @@ public final class PersonalSpawnService {
             return;
         }
 
-        if (compassMeta.hasLodestone() && !isDimicraftCompass(compassMeta) && !isLegacyZeroCompass(compassMeta, target)) {
+        if (!isDimicraftCompass(compassMeta) && !isLegacyZeroCompass(compassMeta, target)) {
             return;
         }
 
-        compassMeta.setLodestone(target);
-        compassMeta.setLodestoneTracked(false);
-        compassMeta.setEnchantmentGlintOverride(false);
-        compassMeta.getPersistentDataContainer().set(zeroCompassKey, PersistentDataType.BYTE, (byte) 1);
+        compassMeta.clearLodestone();
+        compassMeta.setEnchantmentGlintOverride(null);
+        compassMeta.getPersistentDataContainer().remove(zeroCompassKey);
         item.setItemMeta(compassMeta);
     }
 
