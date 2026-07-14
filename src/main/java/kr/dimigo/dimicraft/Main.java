@@ -2,12 +2,9 @@ package kr.dimigo.dimicraft;
 
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 public final class Main extends JavaPlugin {
-    private final Map<UUID, UUID> tpaRequests = new HashMap<>();
     private DimicraftSettings settings;
     private PersonalSpawnStore personalSpawnStore;
     private PersonalSpawnService personalSpawnService;
@@ -24,9 +21,6 @@ public final class Main extends JavaPlugin {
 
         getLogger().info("Dimicraft enabled!");
         getCommand("dimicraft").setExecutor(new DimicraftCommand(this));
-        getCommand("tpa").setExecutor(new TpaCommand(tpaRequests));
-        getCommand("tpaccept").setExecutor(new TpAcceptCommand(tpaRequests));
-        getCommand("tpdeny").setExecutor(new TpDenyCommand(tpaRequests));
         getServer().getPluginManager().registerEvents(new PlayerHeadDropListener(this), this);
         getServer().getPluginManager().registerEvents(new SurvivalRuleListener(this, personalSpawnService), this);
         getServer().getPluginManager().registerEvents(new CoordinateOffsetSessionListener(), this);

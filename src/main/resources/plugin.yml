@@ -1,5 +1,5 @@
 name: Dimicraft
-version: 0.3.7
+version: 0.3.8
 main: kr.dimigo.dimicraft.Main
 api-version: '26.1.2'
 # UUID 마이그레이션이 다른 플러그인이 유저 데이터를 읽기 전에 끝나도록 먼저 로드한다.
@@ -9,18 +9,6 @@ commands:
     description: 디미크래프트 관리 명령어
     usage: /dimicraft <reload|migrate|coords|recover-spawns>
     permission: dimicraft.admin
-
-  tpa:
-    description: 텔레포트 요청을 보냅니다
-    usage: /tpa <플레이어>
-
-  tpaccept:
-    description: 텔레포트 요청을 수락합니다
-    usage: /tpaccept
-
-  tpdeny:
-    description: 텔레포트 요청을 거절합니다
-    usage: /tpdeny
 
 permissions:
   dimicraft.admin:

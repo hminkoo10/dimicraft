@@ -6,7 +6,7 @@
 
     <groupId>kr.dimigo.dimicraft</groupId>
     <artifactId>dimicraft</artifactId>
-    <version>0.3.7</version>
+    <version>0.3.8</version>
 
     <properties>
         <maven.compiler.source>25</maven.compiler.source>
@@ -26,12 +26,6 @@
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
             <version>26.1.2.build.72-stable</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>net.md-5</groupId>
-            <artifactId>bungeecord-chat</artifactId>
-            <version>1.21-R0.2-deprecated+build.21</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
